@@ -1,0 +1,42 @@
+# JMX Exporter config for Spark Driver
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+whitelistObjectNames:
+  # JVM Metrics
+  - 'java.lang:type=Memory'
+  - 'java.lang:type=GarbageCollector,name=*'
+  - 'java.lang:type=Threading'
+  - 'java.lang:type=Runtime'
+
+  # Spark Metrics
+  - 'metrics:name=jvm.*'
+  - 'metrics:name=driver.*'
+  - 'metrics:name=executor.*'
+  - 'metrics:name=BlockManager.*'
+  - 'metrics:name=DAGScheduler.*'
+  - 'metrics:name=tasks.*'
+  - 'metrics:name=stage.*'
+
+rules:
+  # JVM Memory
+  - pattern: 'java.lang<type=Memory>HeapMemoryUsage(.+)'
+    name: 'jvm_heap_memory_$1'
+    type: GAUGE
+    help: 'JVM Heap Memory'
+
+  # Garbage Collection
+  - pattern: 'java.lang<type=GarbageCollector, name=(.+?)><CollectionCount|CollectionTime>'
+    name: 'jvm_gc_${0}_${1}'
+    type: GAUGE
+    labels:
+      gc_name: '$1'
+
+  # Threading
+  - pattern: 'java.lang<type=Threading><ThreadCount|PeakThreadCount>'
+    name: 'jvm_threads_${0}'
+    type: GAUGE
+
+  # Spark Tasks
+  - pattern: 'metrics<name=(.+?)><(.+?)>'
+    name: 'spark_$1_$2'
+    type: GAUGE

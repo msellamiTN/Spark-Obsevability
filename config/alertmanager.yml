@@ -1,0 +1,16 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: 'default'
+  group_by: ['alertname', 'instance']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+
+receivers:
+  - name: 'default'
+    webhook_configs:
+      # Optional: Send to webhook
+      - url: 'http://localhost:5001/'
+        send_resolved: true

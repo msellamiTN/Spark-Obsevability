@@ -1,0 +1,56 @@
+groups:
+  - name: spark_alerts
+    interval: 10s
+    rules:
+      # High memory usage
+      - alert: SparkHighMemoryUsage
+        expr: 'jvm_heap_memory_used / jvm_heap_memory_max > 0.85'
+        for: 2m
+        labels:
+          severity: 'warning'
+        annotations:
+          summary: 'High heap memory usage detected'
+          description: 'Spark {{ $labels.instance }} heap memory usage > 85%'
+
+      # High GC time
+      - alert: SparkHighGCTime
+        expr: 'rate(jvm_gc_collection_seconds_sum[5m]) > 0.1'
+        for: 2m
+        labels:
+          severity: 'warning'
+        annotations:
+          summary: 'High garbage collection time'
+          description: 'Spark {{ $labels.instance }} GC time is elevated'
+
+      # Task failures
+      - alert: SparkTaskFailures
+        expr: 'increase(spark_tasks_failed_total[5m]) > 0'
+        for: 1m
+        labels:
+          severity: 'warning'
+        annotations:
+          summary: 'Spark task failures detected'
+          description: 'Tasks failing on {{ $labels.instance }}'
+
+  - name: node_alerts
+    interval: 10s
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage #PromQL
+        expr: '100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80'
+        for: 2m
+        labels:
+          severity: 'warning'
+        annotations:
+          summary: 'High CPU usage'
+          description: 'CPU usage on {{ $labels.instance }} is above 80%'
+
+      # High disk usage
+      - alert: HighDiskUsage
+        expr: '(1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 85'
+        for: 2m
+        labels:
+          severity: 'warning'
+        annotations:
+          summary: 'High disk usage'
+          description: 'Disk usage on {{ $labels.instance }} is above 85%'
