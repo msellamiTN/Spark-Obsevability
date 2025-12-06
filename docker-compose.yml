@@ -108,7 +108,6 @@ services:
       - ./config/spark-driver-jmx-exporter.yaml:/opt/spark/conf/driver-jmx-exporter.yaml:ro
       - ./jobs:/jobs
       - ./data:/data
-    command: bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080
     networks:
       - obs-spark
     restart: unless-stopped
