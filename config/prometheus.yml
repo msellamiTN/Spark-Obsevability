@@ -58,7 +58,7 @@ scrape_configs:
     scrape_interval: 5s
     scrape_timeout: 3s
     static_configs:
-      - targets: ['localhost:4040']
+      - targets: ['spark-master:4040'] # <--- CRITICAL FIX: Changed to spark-master
         labels:
           type: 'spark-driver-ui'
     relabel_configs:
