@@ -106,22 +106,23 @@ If running on a remote VM with firewalled ports, either open the ports or use SS
 
 ## 6. Run the Sample ETL Job
 
-Submit the provided PySpark ETL job **from inside the Spark master container**:
+Submit the provided PySpark ETL job **from inside the Spark master container** using the Spark binary and job path used by the `spark:3.5.0` image:
 
 ```bash
-docker exec spark-master spark-submit \
+docker exec -e PYSPARK_PYTHON=/usr/bin/python3 spark-master \
+  /opt/spark/bin/spark-submit \
   --master spark://spark-master:7077 \
   --deploy-mode client \
   --executor-memory 1g \
   --executor-cores 2 \
-  /jobs/etl_job.py
+  /opt/spark/jobs/etl_job.py
 ```
 
 The job:
 
 - Generates synthetic data.
 - Applies filters and aggregations.
-- Writes results to `/data/etl_output` (mounted to `./data` on the host).
+- Writes results to `/opt/spark/data/etl_output` inside the container (mapped to `./data/etl_output` on the host).
 - Keeps the Spark application alive briefly so Prometheus can scrape metrics.
 
 While it runs, open:
