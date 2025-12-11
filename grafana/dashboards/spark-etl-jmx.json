@@ -1,0 +1,179 @@
+{
+  "id": null,
+  "uid": "spark-etl-jmx",
+  "title": "Spark ETL Job - JMX Metrics",
+  "schemaVersion": 38,
+  "version": 1,
+  "tags": ["spark", "etl", "jmx", "prometheus"],
+  "timezone": "browser",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Driver JVM & GC",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Driver Heap Usage %",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 1},
+      "targets": [
+        {
+          "expr": "100 * (jvm_heap_memory_used{job=\"spark-driver\"} / jvm_heap_memory_max{job=\"spark-driver\"})",
+          "legendFormat": "driver heap %",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right"},
+        "tooltip": {"mode": "single"}
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Driver GC Collection Time (per GC)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 1},
+      "targets": [
+        {
+          "expr": "sum by(gc_name) (rate({job=\"spark-driver\",__name__=~\"jvm_gc_CollectionTime_.*\"}[5m]))",
+          "legendFormat": "{{gc_name}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "seconds" 
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right"},
+        "tooltip": {"mode": "single"}
+      }
+    },
+    {
+      "type": "row",
+      "title": "Executor JVM",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 9}
+    },
+    {
+      "type": "timeseries",
+      "title": "Executor Heap Usage %",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 10},
+      "targets": [
+        {
+          "expr": "100 * (jvm_heap_memory_used{job=\"spark-executors\"} / jvm_heap_memory_max{job=\"spark-executors\"})",
+          "legendFormat": "executor heap % {{instance}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right"},
+        "tooltip": {"mode": "single"}
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Executor Threads (ThreadCount)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 10},
+      "targets": [
+        {
+          "expr": "jvm_threads_ThreadCount{job=\"spark-executors\"}",
+          "legendFormat": "threads {{instance}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right"},
+        "tooltip": {"mode": "single"}
+      }
+    },
+    {
+      "type": "row",
+      "title": "Spark ETL Job (spark.metrics.namespace = etl_job)",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 18}
+    },
+    {
+      "type": "timeseries",
+      "title": "ETL Job - Task Metrics (driver)",
+      "description": "Shows all JMX-exported metrics whose name starts with spark_etl_job and contains 'tasks'. This relies on spark.metrics.namespace=etl_job.",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 19},
+      "targets": [
+        {
+          "expr": "sum by(__name__) ({job=\"spark-driver\",__name__=~\"spark_etl_job.*tasks.*\"})",
+          "legendFormat": "{{__name__}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right"},
+        "tooltip": {"mode": "single"}
+      }
+    },
+    {
+      "type": "table",
+      "title": "Raw ETL Job Metrics (driver & executors)",
+      "description": "Raw view of all metrics whose name starts with spark_etl_job_ for debugging.",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 27},
+      "targets": [
+        {
+          "expr": "{job=~\"spark-(driver|executors)\",__name__=~\"spark_etl_job.*\"}",
+          "legendFormat": "{{__name__}} {{instance}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  }
+}
