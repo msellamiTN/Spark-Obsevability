@@ -82,15 +82,6 @@ def main():
         .config("spark.executor.memory", "1g")
         .config("spark.executor.cores", "2")
         .config("spark.metrics.namespace", "etl_job")
-        # Attach JMX Prometheus Java agent to driver and executors
-        .config(
-            "spark.driver.extraJavaOptions",
-            "-javaagent:/opt/spark/jars/jmx_prometheus_javaagent.jar=7071:/opt/spark/conf/driver-jmx-exporter.yaml",
-        )
-        .config(
-            "spark.executor.extraJavaOptions",
-            "-javaagent:/opt/spark/jars/jmx_prometheus_javaagent.jar=7072:/opt/spark/conf/executor-jmx-exporter.yaml",
-        )
         .getOrCreate()
     )
 
