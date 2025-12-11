@@ -1,4 +1,7 @@
 # JMX Exporter config for Spark Driver
+startDelaySeconds: 0
+host: 0.0.0.0           # <--- CRITICAL FIX: Ensures binding to all network interfaces
+port: 7071              # <--- Ensure this matches the port in your docker-compose.yml
 lowercaseOutputName: true
 lowercaseOutputLabelNames: true
 whitelistObjectNames:
