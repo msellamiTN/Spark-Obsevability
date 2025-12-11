@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # =================================================================
-  # 1. OBSERVABILITY STACK (PROM + GRAFANA + ALERTS)
+  # 1. OBSERVABILITY STACK (PROM + GRAFANA + ALERTS + NODE-EXPORTER)
   # =================================================================
   prometheus:
     image: prom/prometheus:latest
@@ -10,9 +10,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      # Prometheus main config (must contain scrape targets for Spark JMX, Node Exporter)
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      # Alerting rules
       - ./config/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
       - prometheus_data:/prometheus
     command:
@@ -33,7 +31,6 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
-      # Provisioning for data source (Prometheus) and dashboards
       - ./grafana/provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
     depends_on:
@@ -77,23 +74,22 @@ services:
 
   # =================================================================
   # 2. SPARK CLUSTER (Official Images: spark:3.5.0)
-  # JMX Exporter agent is attached via SPARK_DRIVER/EXECUTOR_JAVA_OPTIONS
+  # FIXED: Using absolute paths for commands to prevent "No such file or directory" error.
   # =================================================================
   spark-master:
     image: spark:3.5.0
     container_name: spark-master
     hostname: spark-master
-    command: "bin/spark-class org.apache.spark.deploy.master.Master"
+    command: "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master" # FIXED PATH
     ports:
       - "8080:8080"      # Master Web UI
       - "7077:7077"      # Master RPC
-      - "7071:7071"      # JMX Exporter Port for Prometheus
+      - "7071:7071"      # JMX Exporter Port
     environment:
       - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
       # JMX Configuration: Attach the javaagent to expose metrics on port 7071
       - SPARK_DRIVER_JAVA_OPTIONS=-javaagent:/opt/spark/jars/jmx_prometheus_javaagent.jar=7071:/opt/spark/conf/driver-jmx-exporter.yaml
-      # Event Logging Configuration for History Server
       - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/spark/spark-events
       - SPARK_LOG_DIR=/opt/spark/spark-events
     volumes:
@@ -109,19 +105,18 @@ services:
     image: spark:3.5.0
     container_name: spark-worker-1
     hostname: spark-worker-1
-    command: "bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077"
+    command: "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077" # FIXED PATH
     depends_on:
       - spark-master
     ports:
       - "8081:8081"      # Worker Web UI
-      - "7072:7072"      # JMX Exporter Port for Prometheus
+      - "7072:7072"      # JMX Exporter Port
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_CORES=2
       - SPARK_WORKER_MEMORY=2G
       # JMX Configuration: Attach the javaagent to expose metrics on port 7072
       - SPARK_EXECUTOR_JAVA_OPTIONS=-javaagent:/opt/spark/jars/jmx_prometheus_javaagent.jar=7072:/opt/spark/conf/executor-jmx-exporter.yaml
-      # Event Logging Configuration
       - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/spark/spark-events
       - SPARK_LOG_DIR=/opt/spark/spark-events
     volumes:
@@ -137,7 +132,7 @@ services:
     image: spark:3.5.0
     container_name: spark-history-server
     hostname: spark-history-server
-    command: "bin/spark-class org.apache.spark.deploy.history.HistoryServer"
+    command: "/opt/spark/bin/spark-class org.apache.spark.deploy.history.HistoryServer" # FIXED PATH
     depends_on:
       - spark-master
     ports:
@@ -158,11 +153,12 @@ services:
     image: portainer/portainer-ce:lts
     restart: always
     volumes:
+      # Connect to the Docker socket to manage the environment
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     ports:
       - 9443:9443  # Portainer Web UI (https)
-      - 8000:8000  # Edge Agent Port
+      - 8000:8000  # Edge Agent Port (optional)
     networks:
       - obs-spark
       
