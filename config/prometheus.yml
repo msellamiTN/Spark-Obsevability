@@ -20,23 +20,45 @@ rule_files:
 
 # Scrape configurations
 scrape_configs:
-  # Prometheus itself
+  # Prometheus self-monitoring
   - job_name: 'prometheus'
     static_configs:
       - targets: ['prometheus:9090']
 
-  # Node Exporter metrics (host-level)
+  # Spark Master metrics (dedicated port 8888)
+  - job_name: 'spark-master'
+    metrics_path: '/metrics/prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['spark-master:8888']
+        labels:
+          component: 'master'
+          app: 'spark'
+
+  # Spark Worker metrics (dedicated port 8889)
+  - job_name: 'spark-worker'
+    metrics_path: '/metrics/prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['spark-worker-1:8889']
+        labels:
+          component: 'worker'
+          app: 'spark'
+
+  # Spark Driver (running jobs) - optional, only works when jobs are running
+  - job_name: 'spark-driver-jobs'
+    metrics_path: '/metrics/prometheus'
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ['spark-master:8890']
+        labels:
+          component: 'driver'
+          app: 'spark'
+
+  # Node Exporter (Host metrics)
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
-
-  # Spark application metrics via Spark's native Prometheus endpoint
-  - job_name: 'spark-driver'
-    metrics_path: '/metrics/prometheus'
-    scrape_interval: 5s
-    scrape_timeout: 3s
-    static_configs:
-      - targets: ['spark-master:4040']
         labels:
-          app: 'spark'
-          component: 'driver'
+          node: 'cluster-node'

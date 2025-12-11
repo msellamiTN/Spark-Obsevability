@@ -84,7 +84,7 @@ services:
     ports:
       - "8080:8080"      # Master Web UI
       - "7077:7077"      # Master RPC
-      - "7071:7071"      # JMX Exporter Port
+      - "8888:8888"      # Prometheus metrics (master)
     environment:
       - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
@@ -108,7 +108,7 @@ services:
       - spark-master
     ports:
       - "8081:8081"      # Worker Web UI
-      - "7072:7072"      # JMX Exporter Port
+      - "8889:8889"      # Prometheus metrics (worker)
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_CORES=2
