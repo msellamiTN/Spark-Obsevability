@@ -88,7 +88,7 @@ services:
 
   # Spark Master with JMX metrics
   spark-master:
-    image: docker.io/bitnami/spark:3.5
+    image: docker.io/bitnami/spark:latest
     container_name: spark-master
     ports:
       - "8080:8080"
@@ -114,7 +114,7 @@ services:
 
   # Spark Worker
   spark-worker:
-    image: docker.io/bitnami/spark:3.5
+    image: docker.io/bitnami/spark:latest
     container_name: spark-worker
     ports:
       - "8081:8081"
