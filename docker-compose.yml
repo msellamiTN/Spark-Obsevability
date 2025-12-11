@@ -139,6 +139,20 @@ services:
     networks:
       - obs-spark
     restart: unless-stopped
+ 
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:lts
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    ports:
+      - 9443:9443
+      - 8000:8000  # Remove if you do not intend to use Edge Agents
+    networks:
+      - obs
+     
 
 networks:
   obs-spark:
@@ -148,3 +162,5 @@ volumes:
   prometheus_data:
   grafana_data:
   alertmanager_data:
+  portainer_data:
+    name: portainer_data
