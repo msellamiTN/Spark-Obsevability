@@ -20,49 +20,23 @@ rule_files:
 
 # Scrape configurations
 scrape_configs:
-  # Prometheus self-monitoring
+  # Prometheus itself
   - job_name: 'prometheus'
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ['prometheus:9090']
 
-  # Spark Driver metrics via JMX Exporter
-  - job_name: 'spark-driver'
-    metrics_path: '/metrics'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['spark-master:7071']
-        labels:
-          component: 'driver'
-          app: 'spark'
-
-  # Spark Executor metrics (port varies by executor)
-  - job_name: 'spark-executors'
-    metrics_path: '/metrics'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['spark-worker:7072']
-        labels:
-          component: 'executor'
-          app: 'spark'
-
-  # Node Exporter (Host metrics)
+  # Node Exporter metrics (host-level)
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
-        labels:
-          node: 'cluster-node'
 
-  # Spark Application Metrics (native endpoint)
-  - job_name: 'spark-app-metrics'
+  # Spark application metrics via Spark's native Prometheus endpoint
+  - job_name: 'spark-driver'
     metrics_path: '/metrics/prometheus'
     scrape_interval: 5s
     scrape_timeout: 3s
     static_configs:
-      - targets: ['spark-master:4040'] # <--- CRITICAL FIX: Changed to spark-master
+      - targets: ['spark-master:4040']
         labels:
-          type: 'spark-driver-ui'
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: '([^:]+)(?::\d+)?'
-        target_label: instance
-        replacement: '${1}:4040'
+          app: 'spark'
+          component: 'driver'

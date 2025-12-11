@@ -88,13 +88,11 @@ services:
     environment:
       - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
-      # JMX Configuration: Attach the javaagent to expose metrics on port 7071
-      - SPARK_DRIVER_JAVA_OPTIONS=-javaagent:/opt/spark/jars/jmx_prometheus_javaagent.jar=7071:/opt/spark/conf/driver-jmx-exporter.yaml
+      - SPARK_CONF_DIR=/opt/spark/conf
       - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/spark/spark-events
       - SPARK_LOG_DIR=/opt/spark/spark-events
     volumes:
-      - ./jars/jmx_prometheus_javaagent.jar:/opt/spark/jars/jmx_prometheus_javaagent.jar:ro
-      - ./config/spark-driver-jmx-exporter.yaml:/opt/spark/conf/driver-jmx-exporter.yaml:ro
+      - ./config/metrics.properties:/opt/spark/conf/metrics.properties:ro
       - spark-events:/opt/spark/spark-events
       - ./jobs:/opt/spark/jobs
       - ./data:/opt/spark/data
@@ -115,13 +113,11 @@ services:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_CORES=2
       - SPARK_WORKER_MEMORY=2G
-      # JMX Configuration: Attach the javaagent to expose metrics on port 7072
-      - SPARK_EXECUTOR_JAVA_OPTIONS=-javaagent:/opt/spark/jars/jmx_prometheus_javaagent.jar=7072:/opt/spark/conf/executor-jmx-exporter.yaml
+      - SPARK_CONF_DIR=/opt/spark/conf
       - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/spark/spark-events
       - SPARK_LOG_DIR=/opt/spark/spark-events
     volumes:
-      - ./jars/jmx_prometheus_javaagent.jar:/opt/spark/jars/jmx_prometheus_javaagent.jar:ro
-      - ./config/spark-executor-jmx-exporter.yaml:/opt/spark/conf/executor-jmx-exporter.yaml:ro
+      - ./config/metrics.properties:/opt/spark/conf/metrics.properties:ro
       - spark-events:/opt/spark/spark-events
       - ./jobs:/opt/spark/jobs
       - ./data:/opt/spark/data
