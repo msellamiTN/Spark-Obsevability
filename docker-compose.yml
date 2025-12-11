@@ -1,7 +1,9 @@
 version: '3.8'
 
 services:
-  # Prometheus - Metrics collection and storage
+  # =================================================================
+  # 1. OBSERVABILITY STACK (PROM + GRAFANA)
+  # =================================================================
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -15,18 +17,10 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
     networks:
       - obs-spark
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
     restart: unless-stopped
 
-  # Grafana - Visualization and Dashboarding
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -35,24 +29,17 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
       - grafana_data:/var/lib/grafana
     depends_on:
       prometheus:
-        condition: service_healthy
+        condition: service_started
     networks:
       - obs-spark
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
     restart: unless-stopped
 
-  # Alertmanager - Alert routing and management
   alertmanager:
     image: prom/alertmanager:latest
     container_name: alertmanager
@@ -68,7 +55,6 @@ services:
       - obs-spark
     restart: unless-stopped
 
-  # Node Exporter - System metrics
   node-exporter:
     image: prom/node-exporter:latest
     container_name: node-exporter
@@ -86,57 +72,86 @@ services:
       - obs-spark
     restart: unless-stopped
 
-  # Spark Master with JMX metrics
+  # =================================================================
+  # 2. SPARK CLUSTER (OFFICIAL IMAGES)
+  # JMX Exporter is configured via 'spark.driver.extraJavaOptions'
+  # =================================================================
   spark-master:
-    image: bitnami/spark:latest
+    image: spark:3.5.0
     container_name: spark-master
+    hostname: spark-master
+    command: "bin/spark-class org.apache.spark.deploy.master.Master"
     ports:
-      - "8080:8080"
-      - "7077:7077"
-      - "4040:4040"
-      - "7071:7071"  # JMX metrics port
+      - "8080:8080"      # Master Web UI
+      - "7077:7077"      # Master RPC
+      - "7071:7071"      # JMX Exporter Port
     environment:
-      - SPARK_MODE=master
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
-      # JMX configuration (JMX remote + Prometheus exporter agent port)
-      - SPARK_DRIVER_JAVA_OPTIONS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=7071 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=spark-master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      # JMX Configuration for Prometheus Exporter
+      - SPARK_DRIVER_JAVA_OPTIONS=-javaagent:/opt/spark/jars/jmx_prometheus_javaagent.jar=7071:/opt/spark/conf/driver-jmx-exporter.yaml
+      # Event Logging Configuration for History Server
+      - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/spark/spark-events
+      - SPARK_LOG_DIR=/opt/spark/spark-events
     volumes:
-      - ./jars/jmx_prometheus_javaagent.jar:/opt/bitnami/spark/jars/jmx_prometheus_javaagent.jar:ro
-      - ./config/spark-driver-jmx-exporter.yaml:/opt/bitnami/spark/conf/driver-jmx-exporter.yaml:ro
-      - ./jobs:/jobs
-      - ./data:/data
+      - ./jars/jmx_prometheus_javaagent.jar:/opt/spark/jars/jmx_prometheus_javaagent.jar:ro
+      - ./config/spark-driver-jmx-exporter.yaml:/opt/spark/conf/driver-jmx-exporter.yaml:ro
+      - spark-events:/opt/spark/spark-events
+      - ./jobs:/opt/spark/jobs
+      - ./data:/opt/spark/data
     networks:
       - obs-spark
     #restart: unless-stopped
 
-  # Spark Worker 1
   spark-worker:
-    image: bitnami/spark:latest
-    container_name: spark-worker
+    image: spark:3.5.0
+    container_name: spark-worker-1
+    hostname: spark-worker-1
+    command: "bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077"
+    depends_on:
+      - spark-master
     ports:
-      - "8081:8081"
-      - "7072:7072"  # JMX metrics port
+      - "8081:8081"      # Worker Web UI
+      - "7072:7072"      # JMX Exporter Port
     environment:
-      - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_CORES=2
       - SPARK_WORKER_MEMORY=2G
-      # JMX configuration
-      - SPARK_EXECUTOR_JAVA_OPTIONS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=7072 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=spark-worker
+      # JMX Configuration for Prometheus Exporter
+      - SPARK_EXECUTOR_JAVA_OPTIONS=-javaagent:/opt/spark/jars/jmx_prometheus_javaagent.jar=7072:/opt/spark/conf/executor-jmx-exporter.yaml
+      # Event Logging Configuration
+      - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/spark/spark-events
+      - SPARK_LOG_DIR=/opt/spark/spark-events
     volumes:
-      - ./jars/jmx_prometheus_javaagent.jar:/opt/bitnami/spark/jars/jmx_prometheus_javaagent.jar:ro
-      - ./config/spark-executor-jmx-exporter.yaml:/opt/bitnami/spark/conf/executor-jmx-exporter.yaml:ro
-      - ./jobs:/jobs
-      - ./data:/data
-    depends_on:
-      - spark-master
+      - ./jars/jmx_prometheus_javaagent.jar:/opt/spark/jars/jmx_prometheus_javaagent.jar:ro
+      - ./config/spark-executor-jmx-exporter.yaml:/opt/spark/conf/executor-jmx-exporter.yaml:ro
+      - spark-events:/opt/spark/spark-events
+      - ./jobs:/opt/spark/jobs
+      - ./data:/opt/spark/data
     networks:
       - obs-spark
     #restart: unless-stopped
- 
+
+  spark-history-server:
+    image: spark:3.5.0
+    container_name: spark-history-server
+    hostname: spark-history-server
+    command: "bin/spark-class org.apache.spark.deploy.history.HistoryServer"
+    depends_on:
+      - spark-master
+    ports:
+      - "18080:18080"    # History Server Web UI
+    environment:
+      - SPARK_HISTORY_FS_LOGDIRECTORY=file:/opt/spark/spark-events
+    volumes:
+      - spark-events:/opt/spark/spark-events
+    networks:
+      - obs-spark
+    restart: unless-stopped
+
+  # =================================================================
+  # 3. MANAGEMENT TOOL
+  # =================================================================
   portainer:
     container_name: portainer
     image: portainer/portainer-ce:lts
@@ -145,12 +160,15 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     ports:
-      - 9443:9443
-      - 8000:8000  # Remove if you do not intend to use Edge Agents
+      - 9443:9900 # Changed to avoid potential conflicts if 9443 is used elsewhere
+      - 8000:8000 
     networks:
       - obs-spark
-     
+      
 
+# =================================================================
+# NETWORKS & VOLUMES
+# =================================================================
 networks:
   obs-spark:
     driver: bridge
@@ -161,3 +179,5 @@ volumes:
   alertmanager_data:
   portainer_data:
     name: portainer_data
+  spark-events:
+    driver: local
