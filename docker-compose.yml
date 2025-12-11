@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # =================================================================
-  # 1. OBSERVABILITY STACK (PROM + GRAFANA)
+  # 1. OBSERVABILITY STACK (PROM + GRAFANA + ALERTS)
   # =================================================================
   prometheus:
     image: prom/prometheus:latest
@@ -10,7 +10,9 @@ services:
     ports:
       - "9090:9090"
     volumes:
+      # Prometheus main config (must contain scrape targets for Spark JMX, Node Exporter)
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # Alerting rules
       - ./config/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
       - prometheus_data:/prometheus
     command:
@@ -31,6 +33,7 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
+      # Provisioning for data source (Prometheus) and dashboards
       - ./grafana/provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
     depends_on:
@@ -73,8 +76,8 @@ services:
     restart: unless-stopped
 
   # =================================================================
-  # 2. SPARK CLUSTER (OFFICIAL IMAGES)
-  # JMX Exporter is configured via 'spark.driver.extraJavaOptions'
+  # 2. SPARK CLUSTER (Official Images: spark:3.5.0)
+  # JMX Exporter agent is attached via SPARK_DRIVER/EXECUTOR_JAVA_OPTIONS
   # =================================================================
   spark-master:
     image: spark:3.5.0
@@ -84,11 +87,11 @@ services:
     ports:
       - "8080:8080"      # Master Web UI
       - "7077:7077"      # Master RPC
-      - "7071:7071"      # JMX Exporter Port
+      - "7071:7071"      # JMX Exporter Port for Prometheus
     environment:
       - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
-      # JMX Configuration for Prometheus Exporter
+      # JMX Configuration: Attach the javaagent to expose metrics on port 7071
       - SPARK_DRIVER_JAVA_OPTIONS=-javaagent:/opt/spark/jars/jmx_prometheus_javaagent.jar=7071:/opt/spark/conf/driver-jmx-exporter.yaml
       # Event Logging Configuration for History Server
       - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/spark/spark-events
@@ -101,7 +104,6 @@ services:
       - ./data:/opt/spark/data
     networks:
       - obs-spark
-    #restart: unless-stopped
 
   spark-worker:
     image: spark:3.5.0
@@ -112,12 +114,12 @@ services:
       - spark-master
     ports:
       - "8081:8081"      # Worker Web UI
-      - "7072:7072"      # JMX Exporter Port
+      - "7072:7072"      # JMX Exporter Port for Prometheus
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_CORES=2
       - SPARK_WORKER_MEMORY=2G
-      # JMX Configuration for Prometheus Exporter
+      # JMX Configuration: Attach the javaagent to expose metrics on port 7072
       - SPARK_EXECUTOR_JAVA_OPTIONS=-javaagent:/opt/spark/jars/jmx_prometheus_javaagent.jar=7072:/opt/spark/conf/executor-jmx-exporter.yaml
       # Event Logging Configuration
       - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/spark/spark-events
@@ -130,7 +132,6 @@ services:
       - ./data:/opt/spark/data
     networks:
       - obs-spark
-    #restart: unless-stopped
 
   spark-history-server:
     image: spark:3.5.0
@@ -160,8 +161,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     ports:
-      - 9443:9900 # Changed to avoid potential conflicts if 9443 is used elsewhere
-      - 8000:8000 
+      - 9443:9443  # Portainer Web UI (https)
+      - 8000:8000  # Edge Agent Port
     networks:
       - obs-spark
       
