@@ -110,7 +110,7 @@ services:
       - ./data:/data
     networks:
       - obs-spark
-    restart: unless-stopped
+    #restart: unless-stopped
 
   # Spark Worker
   spark-worker:
@@ -138,7 +138,7 @@ services:
       - spark-master
     networks:
       - obs-spark
-    restart: unless-stopped
+    #restart: unless-stopped
  
   portainer:
     container_name: portainer
