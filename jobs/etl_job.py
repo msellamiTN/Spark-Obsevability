@@ -60,8 +60,8 @@ def etl_pipeline(spark):
 
     # Stage 4: Output results
     print("\n[STAGE 4] Writing results...")
-    df_agg.coalesce(1).write.mode("overwrite").csv("/data/etl_output", header=True)
-    print("Results written to /data/etl_output")
+    df_agg.coalesce(1).write.mode("overwrite").csv("/opt/spark/data/etl_output", header=True)
+    print("Results written to /opt/spark/data/etl_output")
 
     # Show sample results
     print("\n[RESULTS] Sample aggregations:")
