@@ -112,7 +112,7 @@ services:
       - obs-spark
     #restart: unless-stopped
 
-  # Spark Worker
+  # Spark Worker 1
   spark-worker:
     image: bitnami/spark:latest
     container_name: spark-worker
